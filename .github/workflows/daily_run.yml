@@ -53,8 +53,8 @@ jobs:
 
         # Attach the Excel output file
         echo ${{ secrets.GMAIL_APP_PASSWORD }} | mutt \
-          -e "set from=yourgmail@gmail.com" \
+          -e "set from=sumitkanungo63@gmail.com" \
           -e "set realname='MF Grid Automation'" \
-          -e "set smtp_url=smtps://yourgmail@gmail.com:${{ secrets.GMAIL_APP_PASSWORD }}@smtp.gmail.com:465" \
+          -e "set smtp_url=smtps://sumitkanungo63@gmail.com:${{ secrets.GMAIL_APP_PASSWORD }}@smtp.gmail.com:465" \
           -s "Daily MF Grid Update" \
-          -a data/mf_direct_grid.xlsx -- yourgmail@gmail.com < message.txt
+          -a data/mf_direct_grid.xlsx -- sumitkanungo63@gmail.com < message.txt
