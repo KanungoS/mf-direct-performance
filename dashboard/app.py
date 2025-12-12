@@ -1,80 +1,115 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import os
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_FILE = os.path.join(BASE_DIR, "data", "mf_direct_grid.csv")
-
-st.set_page_config(page_title="MF Direct Performance Dashboard", layout="wide")
-
-@st.cache_data
+# =====================================================
+# LOAD MF GRID FROM GITHUB (always latest version)
+# =====================================================
+@st.cache_data(ttl=3600)   # cache for 1 hour → faster
 def load_data():
-    return pd.read_csv(DATA_FILE)
+    url = "https://raw.githubusercontent.com/KanungoS/mf-direct-performance/main/data/mf_direct_grid.csv"
+    df = pd.read_csv(url)
+
+    # Ensure numeric columns stay numeric
+    numeric_cols = [c for c in df.columns if "Return" in c or "Stdev" in c or "NAV" in c]
+    for c in numeric_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    return df
 
 df = load_data()
 
-st.title("📊 Mutual Fund Performance Dashboard (Direct Plans)")
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+st.set_page_config(
+    page_title="Mutual Fund Performance Dashboard",
+    layout="wide",
+)
 
-# Sidebar Filters
-st.sidebar.header("Filters")
+st.title("📊 Mutual Fund Performance Dashboard")
+st.caption("Auto-updated daily at 8:30 AM IST from GitHub Actions")
 
-amc = st.sidebar.multiselect("Select AMC", sorted(df["AMC"].dropna().unique()))
-category = st.sidebar.multiselect("Select Category", sorted(df["Scheme Category"].unique()))
-sector = st.sidebar.multiselect("Select Sector Theme", sorted(df["Sector Theme"].unique()))
+st.divider()
 
-filtered = df.copy()
-if amc:
-    filtered = filtered[filtered["AMC"].isin(amc)]
-if category:
-    filtered = filtered[filtered["Scheme Category"].isin(category)]
-if sector:
-    filtered = filtered[filtered["Sector Theme"].isin(sector)]
+# =====================================================
+# SECTION 1 — FULL GRID DISPLAY
+# =====================================================
+st.header("📘 Complete Mutual Fund Grid")
 
-st.subheader(f"Filtered Funds ({len(filtered)})")
-st.dataframe(filtered, height=400)
+st.dataframe(df, use_container_width=True)
 
-# Performance Distribution Chart
-st.subheader("Performance Distribution (1Y Return)")
-fig = px.histogram(filtered, x="%Return 1Y", nbins=30, title="Distribution of 1Y Returns")
-st.plotly_chart(fig, use_container_width=True)
+st.divider()
 
-# Sector Leaders & Laggards
-st.subheader("Sector Leaders & Laggards (1Y)")
-
-leaders = filtered[filtered["Sector Performance Tag (1Y)"] == "Sector Leader"]
-laggards = filtered[filtered["Sector Performance Tag (1Y)"] == "Sector Laggard"]
+# =====================================================
+# SECTION 2 — TOP 10 INSIGHTS
+# =====================================================
+st.header("🏆 Top 10 Fund Insights")
 
 col1, col2 = st.columns(2)
 
+# ---------- 1 MONTH MOVERS ----------
 with col1:
-    st.write("### 🟦 Sector Leaders")
-    st.dataframe(leaders)
+    st.subheader("🚀 Best 1-Month Movers")
+    t1 = df.sort_values("Return 1M", ascending=False).head(10)
+    st.dataframe(t1, use_container_width=True)
 
+# ---------- CONSISTENCY (3M) ----------
 with col2:
-    st.write("### 🔴 Sector Laggards")
-    st.dataframe(laggards)
+    st.subheader("📈 Most Consistent (3M)")
+    # “Consistency Score” = return minus volatility
+    df["Consistency Score"] = df["Return 3M"] - df["Stdev 3M"]
+    t2 = df.sort_values("Consistency Score", ascending=False).head(10)
+    st.dataframe(t2, use_container_width=True)
 
-# NAV Trend Chart for a selected fund
-st.subheader("NAV Trend")
+# ---------- LOW VOLATILITY ----------
+st.subheader("🧩 Top 10 Low-Volatility Funds")
+t3 = df.sort_values("Stdev 3M", ascending=True).head(10)
+st.dataframe(t3, use_container_width=True)
 
-fund = st.selectbox("Select a Fund for NAV Chart", filtered["Scheme Name"].unique())
+# ---------- CATEGORY LEADERS ----------
+st.subheader("🏅 Category Leaders (Top Quartile Only)")
+leaders = df[df["Quartile (1Y)"] == "Top Quartile"]
+leaders = leaders.sort_values("Return 1Y", ascending=False).head(10)
+st.dataframe(leaders, use_container_width=True)
 
-fund_code = filtered[filtered["Scheme Name"] == fund]["Scheme Code"].iloc[0]
-nav_file = os.path.join(BASE_DIR, "data", "cache", f"{fund_code}.json")
+st.divider()
 
-if os.path.exists(nav_file):
-    nav_json = pd.read_json(nav_file)
-    nav_data = pd.DataFrame(nav_json["data"].tolist())
-    nav_data["date"] = pd.to_datetime(nav_data["date"], dayfirst=True)
-    nav_data["nav"] = nav_data["nav"].astype(float)
+# =====================================================
+# SECTION 3 — EXPLORER (FILTER-BASED)
+# =====================================================
+st.header("🔍 Explore by AMC / Category / Sector")
 
-    fig2 = px.line(nav_data, x="date", y="nav", title=f"NAV Trend — {fund}")
-    st.plotly_chart(fig2, use_container_width=True)
+colA, colB, colC = st.columns(3)
 
-else:
-    st.warning("NAV history not available yet.")
+amc = colA.selectbox("Select AMC", ["All"] + sorted(df["AMC"].unique()))
+cat = colB.selectbox("Select Category", ["All"] + sorted(df["Scheme Category"].unique()))
+sector = colC.selectbox("Select Sector Theme", ["All"] + sorted(df["Sector Theme"].unique()))
 
-# Download Section
-st.subheader("Download Data")
-st.download_button("Download CSV", df.to_csv(index=False), "mf_direct_performance.csv")
+filtered = df.copy()
+
+if amc != "All":
+    filtered = filtered[filtered["AMC"] == amc]
+
+if cat != "All":
+    filtered = filtered[filtered["Scheme Category"] == cat]
+
+if sector != "All":
+    filtered = filtered[filtered["Sector Theme"] == sector]
+
+st.dataframe(filtered, use_container_width=True)
+
+st.divider()
+
+# =====================================================
+# SECTION 4 — SCHEME LOOKUP + DETAIL VIEW
+# =====================================================
+st.header("📌 Scheme Lookup")
+
+selected_scheme = st.selectbox("Select Scheme", df["Scheme Name"])
+
+selected_row = df[df["Scheme Name"] == selected_scheme].iloc[0]
+
+st.subheader("🔎 Scheme Details")
+st.json(selected_row.to_dict())
+
+st.success("Dashboard loaded successfully. Data auto-refreshes daily!")
