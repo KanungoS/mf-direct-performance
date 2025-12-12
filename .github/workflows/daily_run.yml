@@ -1,5 +1,7 @@
 name: Daily MF Grid Update
 
+permissions:
+  contents: write
 on:
   schedule:
     - cron: "0 3 * * *"   # 8:30 AM IST (03:00 UTC)
