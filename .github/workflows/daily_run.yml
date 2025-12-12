@@ -1,11 +1,8 @@
 name: Daily MF Grid Update
 
-permissions:
-  contents: write
-
 on:
   schedule:
-    - cron: "0 3 * * *"   # 08:30 AM IST (03:00 UTC)
+    - cron: "0 3 * * *"   # 8:30 AM IST
   workflow_dispatch:
 
 jobs:
@@ -19,42 +16,23 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: '3.12'
 
     - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      run: pip install -r requirements.txt
 
     - name: Run grid generation
-      run: |
-        python scripts/generate_grid.py
+      run: python scripts/generate_grid.py
 
-    # ---------------------------------------------------------
-    # COMMIT UPDATED FILES BACK TO GITHUB
-    # ---------------------------------------------------------
-    - name: Commit and push results
+    - name: Commit & push
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "actions@github.com"
-        git add data/*.csv
-        git add data/*.xlsx
-        git commit -m "Daily auto-update $(date)" || echo "No changes to commit"
+        git add .
+        git commit -m "Daily auto-update" || echo "No changes"
         git push
 
-    # ---------------------------------------------------------
-    # SEND EMAIL WITH EXCEL ATTACHMENT
-    # ---------------------------------------------------------
-    - name: Email results
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y mailutils mutt
-
-        echo "Today's MF Grid update is attached." > message.txt
-
-        # Attach the Excel output file
-        echo ${{ secrets.GMAIL_APP_PASSWORD }} | mutt \
-          -e "set from=sumitkanungo63@gmail.com" \
-          -e "set realname='MF Grid Automation'" \
-          -e "set smtp_url=smtps://sumitkanungo63@gmail.com:${{ secrets.GMAIL_APP_PASSWORD }}@smtp.gmail.com:465" \
-          -s "Daily MF Grid Update" \
-          -a data/mf_direct_grid.xlsx -- sumitkanungo63@gmail.com < message.txt
+    - name: Send email
+      run: python scripts/email_results.py
+      env:
+        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
