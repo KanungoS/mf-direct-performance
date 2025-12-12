@@ -1,359 +1,352 @@
-import os, json, time, requests
+# ============================================================
+#   MUTUAL FUND PERFORMANCE ENGINE (FINAL FULL VERSION)
+#   Includes:
+#   - NAV Processing
+#   - Returns (1D, 1W, 1M, 3M, 6M, 1Y, 3Y)
+#   - Rolling Returns (1Y, 3Y)
+#   - StdDev Volatility
+#   - Max Drawdown
+#   - Peer Ranking (Category & Sector)
+#   - AI Fund Score (Option A – Aggressive Momentum)
+#   - Risk Score
+#   - Exit Load Logic
+#   - Excel export + Dashboard + Top 10 lists
+# ============================================================
+
 import pandas as pd
+import numpy as np
+import requests
+import os
 from datetime import datetime, timedelta
-from dateutil import parser
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import PatternFill, Font
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-from sector_mapping import detect_sector_theme
-from category_order import category_rank
-from peer_ranking import compute_category_peer_ranking
-from sector_peer import compute_sector_peer_ranking
+DATA_DIR = "data"
+CACHE_DIR = f"{DATA_DIR}/cache"
+MASTER_CSV = f"{DATA_DIR}/master_list.csv"
+DISCONTINUED_CSV = f"{DATA_DIR}/discontinued_schemes.csv"
+FINAL_CSV = f"{DATA_DIR}/mf_direct_grid.csv"
+FINAL_XLSX = f"{DATA_DIR}/mf_direct_grid.xlsx"
 
-# =========================
-# PATHS
-# =========================
-
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-CACHE_DIR = os.path.join(DATA_DIR, "cache")
-
-MASTER_LIST = os.path.join(DATA_DIR, "master_list.csv")
-DISCONTINUED_FILE = os.path.join(DATA_DIR, "discontinued_schemes.csv")
-FINAL_CSV = os.path.join(DATA_DIR, "mf_direct_grid.csv")
-FINAL_XLSX = os.path.join(DATA_DIR, "mf_direct_grid.xlsx")
-
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(CACHE_DIR, exist_ok=True)
-
-MFAPI_LIST_URL = "https://api.mfapi.in/mf"
-MFAPI_SCHEME_URL = "https://api.mfapi.in/mf/{}"
-
-REQUEST_SLEEP = 0.25
-HISTORY_YEARS = 5
-
-# =========================
-# HELPERS
-# =========================
-
-def fetch_json(url):
-    time.sleep(REQUEST_SLEEP)
-    try:
-        r = requests.get(url, timeout=15)
-        return r.json() if r.status_code == 200 else None
-    except:
-        return None
-
+# ============================================================
+#   UTILITIES
+# ============================================================
 
 def load_master_list():
-    if os.path.exists(MASTER_LIST):
-        return pd.read_csv(MASTER_LIST, dtype=str)
-    return pd.DataFrame(columns=["Scheme Code", "Scheme Name", "Scheme Category", "Scheme Status"])
-
+    return pd.read_csv(MASTER_CSV)
 
 def save_master_list(df):
-    df.to_csv(MASTER_LIST, index=False)
-
+    df.to_csv(MASTER_CSV, index=False)
 
 def load_discontinued():
-    if os.path.exists(DISCONTINUED_FILE):
-        return pd.read_csv(DISCONTINUED_FILE, dtype=str)
-    return pd.DataFrame(columns=["Scheme Code", "Scheme Name", "Date Discontinued"])
-
+    return pd.read_csv(DISCONTINUED_CSV)
 
 def save_discontinued(df):
-    df.to_csv(DISCONTINUED_FILE, index=False)
-
-
-# =========================
-# FETCH DIRECT SCHEMES
-# =========================
+    df.to_csv(DISCONTINUED_CSV, index=False)
 
 def fetch_direct_scheme_list():
-    data = fetch_json(MFAPI_LIST_URL)
-    if not data:
-        return []
-    out = []
-    for s in data:
-        nm = s.get("schemeName", "")
-        if "direct" in nm.lower():
-            out.append({
-                "Scheme Code": str(s["schemeCode"]),
-                "Scheme Name": nm.strip()
-            })
-    return out
-
-
-# =========================
-# CATEGORY NORMALIZATION
-# =========================
-
-def normalize_category(raw):
-    if not raw:
-        return "Other Equity"
-    c = raw.lower()
-
-    mapping = [
-        ("large cap", "Large Cap"),
-        ("large & mid", "Large & Mid Cap"),
-        ("large and mid", "Large & Mid Cap"),
-        ("mid cap", "Mid Cap"),
-        ("small cap", "Small Cap"),
-        ("multi cap", "Multi Cap"),
-        ("flexi cap", "Flexi Cap"),
-        ("focused", "Focused Fund"),
-        ("value", "Value Fund"),
-        ("contra", "Contra Fund"),
-        ("dividend", "Dividend Yield"),
-        ("elss", "ELSS"),
-        ("tax", "ELSS"),
-        ("sector", "Sectoral/Thematic"),
-        ("thematic", "Sectoral/Thematic"),
-        ("aggressive hybrid", "Aggressive Hybrid"),
-        ("conservative hybrid", "Conservative Hybrid"),
-        ("balanced advantage", "Balanced Advantage"),
-        ("dynamic asset", "Balanced Advantage"),
-        ("multi asset", "Multi Asset Allocation"),
-        ("equity savings", "Equity Savings"),
-        ("arbitrage", "Arbitrage Fund"),
-        ("overnight", "Overnight Fund"),
-        ("liquid", "Liquid Fund"),
-        ("ultra short", "Ultra Short Duration Fund"),
-        ("low duration", "Low Duration Fund"),
-        ("money market", "Money Market Fund"),
-        ("short duration", "Short Duration Fund"),
-        ("medium duration", "Medium Duration Fund"),
-        ("medium to long", "Medium to Long Duration Fund"),
-        ("long duration", "Long Duration Fund"),
-        ("corporate bond", "Corporate Bond Fund"),
-        ("credit risk", "Credit Risk Fund"),
-        ("floater", "Floater Fund"),
-        ("banking & psu", "Banking & PSU Fund"),
-        ("gilt fund with 10", "Gilt Fund with 10 year Constant Duration"),
-        ("gilt", "Gilt Fund"),
-        ("dynamic bond", "Dynamic Bond Fund"),
-        ("retirement", "Retirement Fund"),
-        ("children", "Children's Fund"),
-        ("fund of funds", "FoF Domestic"),
-        ("international", "FoF International"),
-        ("gold", "Commodities"),
-        ("silver", "Commodities"),
-        ("commodity", "Commodities"),
-        ("index", "Index Fund")
-    ]
-
-    for k, v in mapping:
-        if k in c:
-            return v
-
-    return "Other Equity"
-
-
-# =========================
-# NAV + RETURNS
-# =========================
+    url = "https://api.mfapi.in/mf"
+    data = requests.get(url).json()
+    return [x for x in data if "Direct" in x["schemeName"]]
 
 def load_nav_history(code):
-    cache_file = os.path.join(CACHE_DIR, f"{code}.json")
+    cache_file = f"{CACHE_DIR}/{code}.json"
+    url = f"https://api.mfapi.in/mf/{code}"
 
     if os.path.exists(cache_file):
-        try:
-            js = json.load(open(cache_file, "r"))
-        except:
-            js = {}
+        js = pd.read_json(cache_file)
     else:
-        js = fetch_json(MFAPI_SCHEME_URL.format(code))
-        if not js:
-            return pd.DataFrame(), {}
-        json.dump(js, open(cache_file, "w"))
+        js = requests.get(url).json()
+        pd.DataFrame(js).to_json(cache_file)
 
-    df = pd.DataFrame(js.get("data", []))
-
-    if df.empty:
-        return pd.DataFrame(), js
-
-    try:
-        df["date"] = df["date"].apply(lambda d: parser.parse(d, dayfirst=True))
-        df["nav"] = df["nav"].astype(float)
-    except:
-        return pd.DataFrame(), js
-
+    df = pd.DataFrame(js["data"])
+    df["nav"] = df["nav"].astype(float)
+    df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
-    cutoff = datetime.today() - timedelta(days=365 * HISTORY_YEARS)
-    df = df[df["date"] >= cutoff]
 
     return df, js
 
+def normalize_category(cat):
+    if "Equity" in cat: return "Equity"
+    if "Debt" in cat: return "Debt"
+    if "Hybrid" in cat: return "Hybrid"
+    if "Index" in cat: return "Index"
+    return cat
 
-def nav_before(df, target):
-    d = df[df["date"] <= target]
-    if d.empty:
-        return None
-    return float(d.iloc[-1]["nav"])
+def detect_sector_theme(name):
+    sectors = ["IT", "Pharma", "Infra", "Banking", "Consumption", "Energy"]
+    for s in sectors:
+        if s.lower() in name.lower():
+            return s
+    return "Diversified"
 
+# ============================================================
+#   RETURN CALCULATIONS
+# ============================================================
 
 def compute_returns(df):
-    if df.empty:
-        return {k: None for k in [
-            "NAV Latest", "NAV 1D", "NAV 1W", "NAV 1M", "NAV 3M", "NAV 6M", "NAV 1Y",
-            "%Return 1D", "%Return 1W", "%Return 1M", "%Return 3M", "%Return 6M", "%Return 1Y"
-        ]}
+    d = {}
 
-    today = df["date"].max()
-    latest = nav_before(df, today)
+    try:
+        latest = df.iloc[-1]["nav"]
+    except:
+        return {}
 
-    def ret(days):
-        past = nav_before(df, today - timedelta(days=days))
-        if past in (None, 0):
+    def pct(days):
+        try:
+            past = df.iloc[-days]["nav"]
+            return round((latest - past) * 100 / past, 4)
+        except:
             return None
-        return (latest / past - 1) * 100
 
-    return {
-        "NAV Latest": latest,
-        "NAV 1D": nav_before(df, today - timedelta(days=1)),
-        "NAV 1W": nav_before(df, today - timedelta(days=7)),
-        "NAV 1M": nav_before(df, today - timedelta(days=30)),
-        "NAV 3M": nav_before(df, today - timedelta(days=90)),
-        "NAV 6M": nav_before(df, today - timedelta(days=180)),
-        "NAV 1Y": nav_before(df, today - timedelta(days=365)),
-        "%Return 1D": ret(1),
-        "%Return 1W": ret(7),
-        "%Return 1M": ret(30),
-        "%Return 3M": ret(90),
-        "%Return 6M": ret(180),
-        "%Return 1Y": ret(365),
+    d["NAV Latest"] = latest
+    d["NAV 1D"] = pct(1)
+    d["NAV 1W"] = pct(7)
+    d["NAV 1M"] = pct(30)
+    d["NAV 3M"] = pct(90)
+    d["NAV 6M"] = pct(180)
+    d["NAV 1Y"] = pct(365)
+    d["NAV 3Y"] = pct(365 * 3)
+
+    # StdDev volatility
+    d["Volatility (StdDev 1Y)"] = df.tail(365)["nav"].pct_change().std()
+
+    # Max Drawdown
+    roll_max = df["nav"].cummax()
+    drawdown = (df["nav"] - roll_max) / roll_max
+    d["Max Drawdown"] = drawdown.min()
+
+    # Rolling returns
+    try:
+        d["Rolling Return 1Y"] = (
+            df["nav"].pct_change(365).dropna().mean()
+        )
+        d["Rolling Return 3Y"] = (
+            df["nav"].pct_change(365 * 3).dropna().mean()
+        )
+    except:
+        d["Rolling Return 1Y"] = None
+        d["Rolling Return 3Y"] = None
+
+    return d
+
+
+# ============================================================
+#   PEER RANKING
+# ============================================================
+
+def compute_category_peer_ranking(df):
+    df["Category Rank (1Y)"] = df.groupby("Scheme Category")["NAV 1Y"] \
+                                 .rank(ascending=False)
+
+    df["Quartile (1Y)"] = df["Category Rank (1Y)"].apply(
+        lambda r: (
+            "Top Quartile" if r <= 25 else
+            "Second Quartile" if r <= 50 else
+            "Third Quartile" if r <= 75 else
+            "Bottom Quartile"
+        )
+    )
+    return df
+
+
+def compute_sector_peer_ranking(df):
+    df["Sector Rank (1Y)"] = df.groupby("Sector Theme")["NAV 1Y"] \
+                               .rank(ascending=False)
+    df["Sector Performance Tag (1Y)"] = df["Sector Rank (1Y)"].apply(
+        lambda r: "Sector Leader" if r <= 3 else "Sector Laggard" if r > 10 else ""
+    )
+    return df
+
+
+# ============================================================
+#   AI FUND SCORE (OPTION A – AGGRESSIVE MOMENTUM)
+# ============================================================
+
+def compute_ai_score(r):
+    score = 0
+
+    # Momentum weights
+    w = {
+        "NAV 1M": 25,
+        "NAV 3M": 25,
+        "NAV 1Y": 20,
+        "NAV 3Y": 20
     }
 
+    for k, wt in w.items():
+        try:
+            score += (r[k] if r[k] else 0) * (wt / 100)
+        except:
+            pass
 
-# =========================
-# EXCEL EXPORT
-# =========================
+    # Volatility penalty
+    if r["Volatility (StdDev 1Y)"]:
+        score -= r["Volatility (StdDev 1Y)"] * 80
+
+    # Peer quartile bonus
+    if r["Quartile (1Y)"] == "Top Quartile":
+        score += 5
+
+    # Rolling consistency
+    try:
+        rr = (r["Rolling Return 1Y"] + r["Rolling Return 3Y"]) / 2
+        score += rr * 10
+    except:
+        pass
+
+    return round(score, 2)
+
+
+# ============================================================
+#   RISK SCORE
+# ============================================================
+
+def compute_risk_score(row):
+    vol = row["Volatility (StdDev 1Y)"]
+    dd = row["Max Drawdown"]
+
+    if vol is None: return "Medium"
+
+    if vol < 0.01 and dd > -0.10:
+        return "Low"
+    if vol < 0.03 and dd > -0.20:
+        return "Medium"
+    return "High"
+
+
+# ============================================================
+#   EXIT LOAD LOGIC (RULE-BASED)
+# ============================================================
+
+def compute_exit_load(cat):
+    cat = cat.lower()
+
+    if "equity" in cat:
+        return "1% if redeemed before 1 year"
+    if "hybrid" in cat:
+        return "1% before 90 days"
+    if "debt" in cat:
+        return "0.25% before 30 days"
+    if "liquid" in cat:
+        return "Graded load decreasing to zero in 7 days"
+    if "elss" in cat:
+        return "Locked for 3 years"
+    return ""
+
+
+# ============================================================
+#   EXCEL EXPORT WITH DASHBOARD + TOP 10
+# ============================================================
 
 def save_excel(df):
     wb = Workbook()
     ws = wb.active
     ws.title = "Direct MF Grid"
-    ws.freeze_panes = "A2"
 
     for r in dataframe_to_rows(df, index=False, header=True):
         ws.append(r)
 
+    # Bold headers
     for col in ws.iter_cols(1, ws.max_column):
         col[0].font = Font(bold=True)
-        ws.column_dimensions[col[0].column_letter].width = 16
 
-    ws.auto_filter.ref = ws.dimensions
+    # ===========================
+    # Dashboard Sheet
+    # ===========================
+    dash = wb.create_sheet("Dashboard")
+    dash.append(["Metric", "Value"])
+    dash.append(["Total Schemes", len(df)])
+    dash.append(["Average AI Score", df["AI Fund Score"].mean()])
+    dash.append(["Low Risk Funds", (df["Risk Score"] == "Low").sum()])
+    dash.append(["Top Quartile Funds", (df["Quartile (1Y)"] == "Top Quartile").sum()])
 
-    grey = PatternFill(start_color="DDDDDD", fill_type="solid")
-    yellow = PatternFill(start_color="FFF2CC", fill_type="solid")
-    green = PatternFill(start_color="C6EFCE", fill_type="solid")
-    lgreen = PatternFill(start_color="E2F0D9", fill_type="solid")
-    lorange = PatternFill(start_color="FCE4D6", fill_type="solid")
-    red = PatternFill(start_color="F8CBAD", fill_type="solid")
-    blue = PatternFill(start_color="BDD7EE", fill_type="solid")
-    orange = PatternFill(start_color="F8CBAD", fill_type="solid")
+    # ===========================
+    # TOP 10 Sheet
+    # ===========================
+    top = wb.create_sheet("Top 10 Summary")
 
-    qi = df.columns.get_loc("Quartile (1Y)") + 1
-    si = df.columns.get_loc("Sector Performance Tag (1Y)") + 1
-    di = df.columns.get_loc("Scheme Status") + 1
-    ni = df.columns.get_loc("Name Changed (Yes/No)") + 1
+    def add_block(title, data):
+        top.append([title])
+        for r in dataframe_to_rows(data, index=False, header=True):
+            top.append(r)
+        top.append([""])
 
-    for r in range(2, ws.max_row + 1):
-
-        if ws.cell(r, di).value == "Discontinued":
-            for c in range(1, ws.max_column + 1):
-                ws.cell(r, c).fill = grey
-            continue
-
-        if ws.cell(r, ni).value == "Yes":
-            for c in range(1, ws.max_column + 1):
-                ws.cell(r, c).fill = yellow
-
-        q = ws.cell(r, qi).value
-        if q == "Top Quartile":
-            ws.cell(r, qi).fill = green
-        elif q == "Second Quartile":
-            ws.cell(r, qi).fill = lgreen
-        elif q == "Third Quartile":
-            ws.cell(r, qi).fill = lorange
-        elif q == "Bottom Quartile":
-            ws.cell(r, qi).fill = red
-
-        s = ws.cell(r, si).value
-        if s == "Sector Leader":
-            ws.cell(r, si).fill = blue
-        elif s == "Sector Laggard":
-            ws.cell(r, si).fill = orange
+    add_block("Top 10 — 1M Performers", df.nlargest(10, "NAV 1M"))
+    add_block("Top 10 — 3M Performers", df.nlargest(10, "NAV 3M"))
+    add_block("Top 10 — 1Y Performers", df.nlargest(10, "NAV 1Y"))
+    add_block("Top 10 — Low Volatility", df.nsmallest(10, "Volatility (StdDev 1Y)"))
+    add_block("Top 10 — Category Leaders", df[df["Quartile (1Y)"] == "Top Quartile"].head(10))
 
     wb.save(FINAL_XLSX)
 
 
-# =========================
-# MAIN ENGINE
-# =========================
+# ============================================================
+#   MAIN
+# ============================================================
 
 def main():
     print("Loading master list...")
     master = load_master_list()
     discontinued = load_discontinued()
 
-    print("Fetching Direct schemes...")
+    print("Fetching schemes...")
     curr = pd.DataFrame(fetch_direct_scheme_list())
 
     prev = set(master["Scheme Code"])
-    now = set(curr["Scheme Code"])
+    now = set(curr["schemeCode"])
 
     removed = prev - now
     added = now - prev
 
-    # mark discontinued
-    for code in removed:
-        if discontinued[discontinued["Scheme Code"] == code].empty:
-            old = master.loc[master["Scheme Code"] == code, "Scheme Name"].iloc[0]
-            discontinued = pd.concat([
-                discontinued,
-                pd.DataFrame([{
-                    "Scheme Code": code,
-                    "Scheme Name": old,
-                    "Date Discontinued": datetime.today().strftime("%Y-%m-%d")
-                }])
-            ], ignore_index=True)
+    # Mark discontinued
+    for c in removed:
+        old = master.loc[master["Scheme Code"] == c, "Scheme Name"].iloc[0]
+        discontinued = pd.concat([
+            discontinued,
+            pd.DataFrame([{
+                "Scheme Code": c,
+                "Scheme Name": old,
+                "Date Discontinued": datetime.today().strftime("%Y-%m-%d")
+            }])
+        ])
 
-    # add new schemes
-    for code in added:
-        nm = curr.loc[curr["Scheme Code"] == code, "Scheme Name"].iloc[0]
+    # Add new ones
+    for c in added:
+        nm = curr[curr["schemeCode"] == c]["schemeName"].iloc[0]
         master = pd.concat([
             master,
             pd.DataFrame([{
-                "Scheme Code": code,
+                "Scheme Code": c,
                 "Scheme Name": nm,
                 "Scheme Category": "",
                 "Scheme Status": "Active"
             }])
-        ], ignore_index=True)
+        ])
 
     master["Scheme Status"] = master["Scheme Code"].apply(
         lambda c: "Discontinued" if c in removed else "Active"
     )
 
+    # Now process NAV + metrics
     rows = []
-    print("Processing NAV + returns...\n")
 
     for i, r in master.iterrows():
-        print(f" → Processing {i+1}/{len(master)}: {r['Scheme Name']} ({r['Scheme Code']})")
-
         code = r["Scheme Code"]
         oldname = r["Scheme Name"]
 
+        print(f"→ {i+1}/{len(master)}: {oldname} ({code})")
+
         df, js = load_nav_history(code)
         meta = js.get("meta", {})
+
         cat = normalize_category(meta.get("category", ""))
         amc = meta.get("fund_house", "")
         sector = detect_sector_theme(oldname)
 
         ret = compute_returns(df)
-        name_changed = "Yes" if oldname != meta.get("scheme_name", "") else "No"
+        name_changed = "Yes" if oldname != meta.get("scheme_name", oldname) else "No"
 
         rows.append({
             "AMC": amc,
@@ -368,18 +361,28 @@ def main():
 
     df = pd.DataFrame(rows)
 
+    # Rankings
     df = compute_category_peer_ranking(df)
     df = compute_sector_peer_ranking(df)
 
-    df["__cat_rank__"] = df["Scheme Category"].apply(category_rank)
-    df = df.sort_values(["__cat_rank__", "AMC", "Scheme Name"]).drop(columns="__cat_rank__")
+    # AI Score
+    df["AI Fund Score"] = df.apply(compute_ai_score, axis=1)
+
+    # Risk Score
+    df["Risk Score"] = df.apply(compute_risk_score, axis=1)
+
+    # Exit Load
+    df["Exit Load"] = df["Scheme Category"].apply(compute_exit_load)
+
+    # Sort final
+    df = df.sort_values(["AMC", "Scheme Name"])
 
     df.to_csv(FINAL_CSV, index=False)
     save_excel(df)
     save_master_list(master)
     save_discontinued(discontinued)
 
-    print("\nDONE ✓ Output generated.")
+    print("\nDONE ✓ All outputs generated.")
 
 
 if __name__ == "__main__":
