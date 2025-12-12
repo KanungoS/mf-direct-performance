@@ -48,11 +48,11 @@ jobs:
         echo "Please find attached today's Mutual Fund Grid & Portfolio Tracker." > message.txt
 
         mutt \
-          -e "set from=yourgmail@gmail.com" \
+          -e "set from=sumitkanungo63@gmail.com" \
           -e "set realname='MF Daily Automation'" \
-          -e "set smtp_url=smtps://yourgmail@gmail.com:${GMAIL_APP_PASSWORD}@smtp.gmail.com:465" \
+          -e "set smtp_url=smtps://sumitkanungo63@gmail.com:${GMAIL_APP_PASSWORD}@smtp.gmail.com:465" \
           -s "Daily MF Update - $(date)" \
-          -a data/mf_direct_grid.xlsx -- yourgmail@gmail.com < message.txt
+          -a data/mf_direct_grid.xlsx -- sumitkanungo63@gmail.com < message.txt
 
     # ----------------------------------------------------
     # SEND ALERT IF ANY FUND DROPS >5%
