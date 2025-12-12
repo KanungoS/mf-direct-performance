@@ -2,110 +2,114 @@ name: Daily MF Grid + Portfolio Update
 
 on:
   schedule:
-    - cron: "0 3 * * *"    # Runs daily at 08:30 AM IST (03:00 UTC)
+    - cron: "0 3 * * *"       # 08:30 AM IST
   workflow_dispatch:
 
 jobs:
-  update-mf-data:
+  run-engine:
     runs-on: ubuntu-latest
 
     steps:
-    # ----------------------------------------------------
-    # CHECKOUT REPO
-    # ----------------------------------------------------
+    # -----------------------------
+    # CHECKOUT REPOSITORY
+    # -----------------------------
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # ----------------------------------------------------
-    # PYTHON SETUP
-    # ----------------------------------------------------
+    # -----------------------------
+    # SETUP PYTHON
+    # -----------------------------
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.12"
 
-    # ----------------------------------------------------
+    # -----------------------------
     # INSTALL DEPENDENCIES
-    # ----------------------------------------------------
+    # -----------------------------
     - name: Install dependencies
       run: |
+        pip install --upgrade pip
         pip install -r requirements.txt
 
-    # ----------------------------------------------------
+    # -----------------------------
     # RUN MAIN ENGINE
-    # ----------------------------------------------------
+    # -----------------------------
     - name: Run MF Grid + Portfolio Engine
       run: |
         python scripts/generate_grid.py
 
-    # ----------------------------------------------------
-    # COMMIT UPDATED FILES BACK TO REPO
-    # ----------------------------------------------------
-    - name: Commit updated files
+    # -----------------------------
+    # COMMIT UPDATED FILES
+    # -----------------------------
+    - name: Commit updated output files
       run: |
-        git config --global user.email "actions@github.com"
         git config --global user.name "github-actions"
-        git add data/*.csv
-        git add data/*.xlsx
+        git config --global user.email "actions@github.com"
+        git add data/*.csv || true
+        git add data/*.xlsx || true
         git commit -m "Daily update $(date)" || echo "No changes to commit"
         git push
 
-    # ----------------------------------------------------
-    # SEND DAILY REPORT EMAIL (ATTACH EXCEL)
-    # ----------------------------------------------------
-    - name: Send MF Report Email
+    # -----------------------------
+    # SEND DAILY REPORT EMAIL
+    # -----------------------------
+    - name: Email Daily MF Report
       env:
         GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
       run: |
         sudo apt-get update
-        sudo apt-get install -y mailutils mutt
+        sudo apt-get install -y mutt mailutils
 
-        echo "Please find attached today's Mutual Fund Grid & Portfolio Tracker." > message.txt
+        echo "Attached is today's MF grid + portfolio tracker." > message.txt
 
         mutt \
           -e "set from=sumitkanungo63@gmail.com" \
           -e "set realname='MF Daily Automation'" \
           -e "set smtp_url=smtps://sumitkanungo63@gmail.com:${GMAIL_APP_PASSWORD}@smtp.gmail.com:465" \
           -s "Daily MF Update - $(date)" \
-          -a data/mf_direct_grid.xlsx -- sumitkanungo63@gmail.com < message.txt
+          -a data/mf_direct_grid.xlsx \
+          -- sumitkanungo63@gmail.com < message.txt
 
-    # ----------------------------------------------------
-    # SEND ALERT IF ANY FUND DROPS >5%
-    # ----------------------------------------------------
+    # -----------------------------
+    # SEND ALERT IF FUND DROPS >5%
+    # -----------------------------
     - name: Send Drop Alert Email
       env:
         GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
       run: |
         python3 << 'EOF'
+import os
 import pandas as pd
 import smtplib
 from email.message import EmailMessage
-import os
 
-df = pd.read_csv("data/my_portfolio.csv")
+PORTFOLIO_FILE = "data/my_portfolio.csv"
+email = "sumitkanungo63@gmail.com"
+app_pw = os.environ["GMAIL_APP_PASSWORD"]
 
-# Filter: deviation <= -5%
+df = pd.read_csv(PORTFOLIO_FILE)
+
+# Identify drops exceeding -5%
 alerts = df[df["% Deviation"] <= -5]
 
 if alerts.empty:
-    print("No negative alerts today.")
-    exit(0)
+    print("No alerts to send.")
+    raise SystemExit(0)
+
+body = "⚠ ALERT: Funds dropped over 5%:\n\n"
+for _, row in alerts.iterrows():
+    body += f"{row['Scheme Name']} → {row['% Deviation']:.2f}%\n"
 
 msg = EmailMessage()
-msg["Subject"] = "⚠ MF Alert — NAV Drop Exceeded 5%"
-msg["From"] = "yourgmail@gmail.com"
-msg["To"] = "yourgmail@gmail.com"
-
-body = "⚠ ALERT — The following funds have dropped more than 5%:\n\n"
-for _, r in alerts.iterrows():
-    body += f"{r['Scheme Name']}  →  {r['% Deviation']:.2f}%\n"
-
+msg["Subject"] = "⚠ MF Alert — NAV Drop >5%"
+msg["From"] = email
+msg["To"] = email
 msg.set_content(body)
 
-smtp = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-smtp.login("yourgmail@gmail.com", os.environ["GMAIL_APP_PASSWORD"])
-smtp.send_message(msg)
-smtp.quit()
+with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+    smtp.login(email, app_pw)
+    smtp.send_message(msg)
 
 print("Alert email sent.")
 EOF
