@@ -2,7 +2,7 @@ name: Daily MF Grid + Portfolio Update
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 3 * * *"         # Runs daily at 08:30 AM IST
   workflow_dispatch:
 
 jobs:
@@ -10,32 +10,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+    # -----------------------------
+    # CHECKOUT REPOSITORY
+    # -----------------------------
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Set up Python
+    # -----------------------------
+    # SET UP PYTHON
+    # -----------------------------
+    - name: Set up Python 3.12
       uses: actions/setup-python@v4
       with:
         python-version: "3.12"
 
+    # -----------------------------
+    # INSTALL DEPENDENCIES
+    # -----------------------------
     - name: Install dependencies
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
 
+    # -----------------------------
+    # RUN MAIN ENGINE
+    # -----------------------------
     - name: Run MF Grid + Portfolio Engine
       run: |
         python scripts/generate_grid.py
 
+    # -----------------------------
+    # COMMIT UPDATED OUTPUT FILES
+    # -----------------------------
     - name: Commit updated output files
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "actions@github.com"
         git add data/*.csv || true
         git add data/*.xlsx || true
-        git commit -m "Daily update $(date)" || echo "No changes"
+        git commit -m "Daily update $(date)" || echo "No changes to commit"
         git push
 
+    # -----------------------------
+    # SEND DAILY MF REPORT EMAIL
+    # -----------------------------
     - name: Email Daily MF Report
       env:
         GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
@@ -43,7 +62,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y mutt mailutils
 
-        echo "Attached is today's MF grid and portfolio tracker." > message.txt
+        echo "Attached is today's MF Grid + Portfolio Tracker." > message.txt
 
         mutt \
           -e "set from=sumitkanungo63@gmail.com" \
@@ -53,6 +72,9 @@ jobs:
           -a data/mf_direct_grid.xlsx \
           -- sumitkanungo63@gmail.com < message.txt
 
+    # -----------------------------
+    # SEND NAV DROP ALERT (>5%)
+    # -----------------------------
     - name: Send Drop Alert Email
       env:
         GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
@@ -72,15 +94,15 @@ df = pd.read_csv(PORTFOLIO_FILE)
 alerts = df[df["% Deviation"] <= -5]
 
 if alerts.empty:
-    print("No alerts to send.")
+    print("No negative alerts.")
     raise SystemExit(0)
 
-body = "ALERT: The following funds dropped more than 5 percent:\n\n"
+body = "⚠ ALERT: Funds dropped more than 5%:\n\n"
 for _, row in alerts.iterrows():
-    body += f"{row['Scheme Name']} : {row['% Deviation']:.2f}%\n"
+    body += f"{row['Scheme Name']} → {row['% Deviation']:.2f}%\n"
 
 msg = EmailMessage()
-msg["Subject"] = "MF Alert - NAV Drop >5%"
+msg["Subject"] = "⚠ MF Alert — NAV Drop > 5%"
 msg["From"] = email
 msg["To"] = email
 msg.set_content(body)
@@ -91,4 +113,3 @@ with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
 
 print("Alert email sent.")
 EOF
-
