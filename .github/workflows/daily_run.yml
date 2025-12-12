@@ -35,7 +35,7 @@ jobs:
       # -----------------------------
       # RUN MAIN MF ENGINE
       # -----------------------------
-      - name: Run MF Grid + Portfolio Engine
+      - name: Run MF Grid and Portfolio Engine
         run: |
           python scripts/generate_grid.py
 
