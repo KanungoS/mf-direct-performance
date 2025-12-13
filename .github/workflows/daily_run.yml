@@ -61,7 +61,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y mutt mailutils
 
-          echo "Attached is today's MF Grid + Portfolio Tracker Auto-Report." > message.txt
+          echo "Attached is today's MF Grid and Portfolio Tracker Auto-Report." > message.txt
 
           mutt \
             -e "set from=sumitkanungo63@gmail.com" \
