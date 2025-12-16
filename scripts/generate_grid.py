@@ -11,7 +11,7 @@ PORTFOLIO = os.path.join(DATA_DIR, "my_portfolio.csv")
 GRID_CSV = os.path.join(DATA_DIR, "mf_direct_grid.csv")
 GRID_XLSX = os.path.join(DATA_DIR, "mf_direct_grid.xlsx")
 
-AMFI_URL = "https://portal.amfiindia.com/spages/NAVAll.txt"
+AMFI_URL = "https://www.amfiindia.com/spages/NAVAll.txt"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -138,3 +138,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
