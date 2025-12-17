@@ -1,0 +1,33 @@
+name: Daily Portfolio Update
+
+on:
+  schedule:
+    - cron: "30 3 * * *"   # 09:00 IST
+  workflow_dispatch:
+
+jobs:
+  update-portfolio:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update Portfolio
+        run: python scripts/update_portfolio.py
+
+      - name: Commit portfolio output
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@github.com"
+          git add data/my_portfolio.csv
+          git commit -m "Daily portfolio update" || echo "No changes"
+          git push
