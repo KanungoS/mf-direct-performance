@@ -1,7 +1,7 @@
-Scheme Code,Scheme Name,Status,Units,Purchase NAV,Date of Purchase,Total Purchase Value,Current NAV,Current Date,Current Value,% Deviation,Will Exit Load Apply,Exit Load Period -1,Exit Load %- 1,Exit Load Period -2,Exit Load %- 2
-153432,SBI BSE PSU Bank Index Fund - Direct Growth,Switch-in,380.07,13.52,21-11-2025,5136.72,,,,,Y,15 days,0.25,,
-133859,SBI BANKING & FINANCIAL SERVICES FUND - DIRECT PLAN - GROWTH,Switch-in,102.851,50.49,21-11-2025,5192.87,,,,,Y,30 days,0.5,,
-119727,SBI FOCUSED FUND - DIRECT PLAN -GROWTH,Purchase,11.82,422.9765,19-11-2025,4999.58,,,,,Y,30 days,0.25,31-90 days,0.1
-133859,SBI BANKING & FINANCIAL SERVICES FUND - DIRECT PLAN - GROWTH,Purchase,106.65,46.88,06-06-2025,4999.74,,,,,Y,30 days,0.5,,
-120586,ICICI Prudential Large Cap Fund (erstwhile Bluechip Fund) - Direct Plan - Growth,Purchase,23.59,127.19,21-11-2025,3000.41,,,,,Y,365 days,1.0,,
-152354,Motilal Oswal Large Cap Direct Plan Growth,Purchase,204.76,14.65,21-11-2025,2999.73,,,,,Y,365 days,1.0,,
+Scheme Code,Scheme Name,Status,Units,Purchase NAV,Date of Purchase,Total Purchase Value,Current NAV,Current Date,Current Value,% Deviation,Will Exit Load Apply,Exit Load Period -1,Exit Load %- 1,Exit Load Period -2,Exit Load %- 2,Data Audit Status
+153432,SBI BSE PSU Bank Index Fund - Direct Growth,Switch-in,380.07,13.52,21-11-2025,5136.72,13.2341,17-12-2025,5029.884387,-2.0798410853618687,Y,15 days,0.25,,,OK
+133859,SBI BANKING & FINANCIAL SERVICES FUND - DIRECT PLAN - GROWTH,Switch-in,102.851,50.49,21-11-2025,5192.87,50.5772,17-12-2025,5201.9155972,0.17419263721217698,Y,30 days,0.5,,,OK
+119727,SBI FOCUSED FUND - DIRECT PLAN -GROWTH,Purchase,11.82,422.9765,19-11-2025,4999.58,425.7948,17-12-2025,5032.894536,0.6663466931222195,Y,30 days,0.25,31-90 days,0.1,OK
+133859,SBI BANKING & FINANCIAL SERVICES FUND - DIRECT PLAN - GROWTH,Purchase,106.65,46.88,06-06-2025,4999.74,50.5772,17-12-2025,5394.05838,7.886777712441059,Y,30 days,0.5,,,OK
+120586,ICICI Prudential Large Cap Fund (erstwhile Bluechip Fund) - Direct Plan - Growth,Purchase,23.59,127.19,21-11-2025,3000.41,126.28,17-12-2025,2978.9452,-0.7153955626064352,Y,365 days,1.0,,,OK
+152354,Motilal Oswal Large Cap Direct Plan Growth,Purchase,204.76,14.65,21-11-2025,2999.73,14.4887,17-12-2025,2966.7062119999996,-1.1008920136145728,Y,365 days,1.0,,,OK
