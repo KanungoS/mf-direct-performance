@@ -1,0 +1,58 @@
+name: Mutual Fund Daily Engine
+
+on:
+  schedule:
+    # 08:45 AM IST (UTC 03:15), Monday–Friday
+    - cron: '15 3 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  mf-engine:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas requests
+
+      # 🔹 STEP 1: NAV HISTORY (BACKBONE)
+      - name: Update NAV History
+        run: python update_nav_history.py
+
+      # 🔹 STEP 2: CORE MF UNIVERSE
+      - name: Build Core MF Dataset
+        run: python mf_core_direct_openended.py
+
+      # 🔹 STEP 3: TACTICAL WATCHLIST
+      - name: Build Tactical Watchlist
+        run: python mf_tactical_watchlist.py
+
+      # 🔹 STEP 4: RETURN WINDOWS (1W–5Y)
+      - name: Compute Rolling Returns
+        run: python mf_return_engine.py
+
+      # 🔹 STEP 5: PORTFOLIO VALUATION
+      - name: Update Portfolio Valuation
+        run: python my_portfolio.py
+
+      # 🔹 STEP 6: VALIDATION (FAIL-FAST)
+      - name: Validate Outputs
+        run: python validate_outputs.py
+
+      # 🔹 STEP 7: COMMIT & PUSH RESULTS
+      - name: Commit updated CSVs
+        run: |
+          git config user.name "mf-engine"
+          git config user.email "mf-engine@auto"
+          git add *.csv
+          git commit -m "Daily MF engine update" || echo "No changes to commit"
+          git push
