@@ -26,7 +26,7 @@ jobs:
 
       # 🔹 STEP 1: NAV HISTORY (BACKBONE)
       - name: Update NAV History
-        run: python update_nav_history.py
+        run: python scripts/update_nav_history.py
 
       # 🔹 STEP 2: CORE MF UNIVERSE
       - name: Build Core MF Dataset
@@ -34,19 +34,19 @@ jobs:
 
       # 🔹 STEP 3: TACTICAL WATCHLIST
       - name: Build Tactical Watchlist
-        run: python mf_tactical_watchlist.py
+        run: python scripts/mf_tactical_watchlist.py
 
       # 🔹 STEP 4: RETURN WINDOWS (1W–5Y)
       - name: Compute Rolling Returns
-        run: python mf_return_engine.py
+        run: python scripts/mf_return_engine.py
 
       # 🔹 STEP 5: PORTFOLIO VALUATION
       - name: Update Portfolio Valuation
-        run: python my_portfolio.py
+        run: python scripts/my_portfolio.py
 
       # 🔹 STEP 6: VALIDATION (FAIL-FAST)
       - name: Validate Outputs
-        run: python validate_outputs.py
+        run: python scripts/validate_outputs.py
 
       # 🔹 STEP 7: COMMIT & PUSH RESULTS
       - name: Commit updated CSVs
