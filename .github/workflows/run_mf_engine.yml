@@ -30,7 +30,7 @@ jobs:
 
       # 🔹 STEP 2: CORE MF UNIVERSE
       - name: Build Core MF Dataset
-        run: python mf_core_direct_openended.py
+        run: python scripts/mf_core_direct_openended.py
 
       # 🔹 STEP 3: TACTICAL WATCHLIST
       - name: Build Tactical Watchlist
