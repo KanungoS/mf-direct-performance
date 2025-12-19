@@ -32,6 +32,7 @@ def main():
       .str.replace("-", "_")
       .str.replace("%", "PCT")
     )
+    pf["Date_of_Purchase"] = pd.to_datetime(pf["Date_of_Purchase"], errors="coerce", dayfirst=True)
     # -----------------------------------------
     # --------------------------------------------------------
     # 2. Load rolling returns
@@ -136,5 +137,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
