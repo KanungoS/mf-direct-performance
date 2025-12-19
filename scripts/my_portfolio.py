@@ -23,7 +23,7 @@ def main():
     # --------------------------------------------------------
     # 1. Load portfolio
     # --------------------------------------------------------
-    pf = pd.read_csv(PORTFOLIO_INPUT, parse_dates=["Date of Purchase"])
+    pf = pd.read_csv(PORTFOLIO_INPUT)
     # ---- HARDEN COLUMN NAMES (PASTE HERE) ----
     pf.columns = (
     pf.columns
@@ -136,4 +136,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
