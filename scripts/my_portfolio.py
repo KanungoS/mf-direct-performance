@@ -57,7 +57,7 @@ def main():
     # 4. Exit Load Impact (supports 1 or 2 slabs)
     # --------------------------------------------------------
     today = pd.Timestamp.today().normalize()
-    pf["Date of Purchase"] = pd.to_datetime(pf["Date of Purchase"], errors="coerce")
+    pf["Date_of_Purchase"] = pd.to_datetime(pf["Date_of_Purchase"], errors="coerce")
     pf["Holding_Days"] = (today - pf["Date of Purchase"]).dt.days
 
     pf["Exit_Load_Impact_%"] = 0.0
@@ -136,3 +136,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
