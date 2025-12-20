@@ -1,7 +1,0 @@
-SchemeCode,Scheme_Name,Status,Units,Purchase_NAV,Date_of_Purchase,Total_Purchase_Value,Current_NAV,Current_Date,Current_Value,PCT_Deviation,Will_Exit_Load_Apply,Exit_Load_Period__1,Exit_Load_PCT__1,Exit_Load_Period__2,Exit_Load_PCT__2,Return_1M,Return_3M,Return_6M,Holding_Days,Exit_Load_Impact_%,Exit_Load_Amount,IRR,ALERT
-153432,SBI BSE PSU Bank Index Fund - Direct Growth,Switch-in,380.07,13.52,2025-11-21,5136.72,,,,,Y,15 days,0.25,,,,,,29,0.0,,,
-133859,SBI BANKING & FINANCIAL SERVICES FUND - DIRECT PLAN - GROWTH,Switch-in,102.851,50.49,2025-11-21,5192.87,,,,,Y,30 days,0.5,,,,,,29,0.5,,,
-119727,SBI FOCUSED FUND - DIRECT PLAN -GROWTH,Purchase,11.82,422.98,2025-11-19,4999.58,,,,,Y,30 days,0.25,31-90 days,0.1,,,,31,0.1,,,
-133859,SBI BANKING & FINANCIAL SERVICES FUND - DIRECT PLAN - GROWTH,Purchase,106.65,46.88,2025-06-06,4999.74,,,,,Y,30 days,0.5,,,,,,197,0.0,,,
-120586,ICICI Prudential Large Cap Fund (erstwhile Bluechip Fund) - Direct Plan - Growth,Purchase,23.59,127.19,2025-11-21,3000.41,,,,,Y,365 days,1.0,,,,,,29,1.0,,,
-152354,Motilal Oswal Large Cap Direct Plan Growth,Purchase,204.76,14.65,2025-11-21,2999.73,,,,,Y,365 days,1.0,,,,,,29,1.0,,,
