@@ -27,7 +27,7 @@ jobs:
           curl -L \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/octet-stream" \
-            PASTE_ZIP_LINK_HERE \
+            https://github.com/user-attachments/files/24288237/nav_history.zip \
             -o nav_history.zip
 
           unzip nav_history.zip -d data
