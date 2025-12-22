@@ -1,0 +1,48 @@
+name: MF Daily Performance Update
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 8:30 AM IST
+  workflow_dispatch:
+
+jobs:
+  run-mf:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Download NAV history base
+      run: |
+        curl -L \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          https://github.com/KanungoS/mf-direct-performance/releases/download/v1.0.0/nav_history.zip \
+          -o nav_history.zip
+        unzip nav_history.zip -d data
+
+    - name: Run Core MF Engine
+      run: python scripts/mf_core_engine.py
+
+    - name: Run Tactical MF Engine
+      run: python scripts/mf_tactical_engine.py
+
+    - name: Run Portfolio Engine
+      run: python scripts/portfolio_engine.py
+
+    - name: Commit outputs
+      run: |
+        git config user.name "github-actions"
+        git config user.email "actions@github.com"
+        git add data/*.csv
+        git commit -m "Daily MF performance update" || echo "No changes"
+        git push
