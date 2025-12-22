@@ -28,7 +28,7 @@ jobs:
           curl -L \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/octet-stream" \
-          https://api.github.com/repos/KanungoS/mf-direct-performance/releases/assets/REPLACE_ASSET_ID \
+          https://api.github.com/repos/KanungoS/mf-direct-performance/releases/assets/24288237 \
           -o nav_history.zip
           unzip -o nav_history.zip -d data
           rm nav_history.zip
