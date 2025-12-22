@@ -19,28 +19,36 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
 
       - name: Download NAV history base
         run: |
-          curl -L "https://github.com/user-attachments/files/24288237/nav_history.zip" -o nav_history.zip
+          mkdir -p data
+          curl -L \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/octet-stream" \
+            https://github.com/KanungoS/mf-direct-performance/releases/download/v1.0.0/nav_history.zip \
+            -o nav_history.zip
           unzip nav_history.zip -d data
           rm nav_history.zip
 
       - name: Run Core MF Engine
-        run: python scripts/mf_core_engine.py
+        run: |
+          python scripts/mf_core_engine.py
 
       - name: Run Tactical MF Engine
-        run: python scripts/mf_tactical_engine.py
+        run: |
+          python scripts/mf_tactical_engine.py
 
       - name: Run Portfolio Engine
-        run: python scripts/portfolio_engine.py
+        run: |
+          python scripts/portfolio_engine.py
 
       - name: Commit outputs
         run: |
           git config user.name "mf-engine"
-          git config user.email "mf-engine@github.com"
+          git config user.email "mf-engine@users.noreply.github.com"
           git add data/*.csv
-          git reset data/nav_history.csv || true
-          git commit -m "Daily MF performance update" || echo "Nothing to commit"
+          git commit -m "Daily MF performance update" || echo "No changes to commit"
           git push
