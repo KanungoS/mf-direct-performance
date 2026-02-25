@@ -8,6 +8,7 @@ on:
 jobs:
   run-mf:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repo
@@ -22,16 +23,44 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Download NAV history base (CORRECT WAY)
+      - name: Install jq (for JSON parsing)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Download NAV history base (Robust Dynamic Method)
         run: |
           mkdir -p data
+
+          echo "Fetching latest release info..."
+
+          curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/KanungoS/mf-direct-performance/releases/latest \
+            -o latest_release.json
+
+          DOWNLOAD_URL=$(jq -r '.assets[0].url' latest_release.json)
+
+          if [ "$DOWNLOAD_URL" == "null" ]; then
+            echo "No release assets found!"
+            exit 1
+          fi
+
+          echo "Downloading NAV history asset..."
+
           curl -L \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/octet-stream" \
-          https://api.github.com/repos/KanungoS/mf-direct-performance/releases/assets/24288237 \
-          -o nav_history.zip
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/octet-stream" \
+            "$DOWNLOAD_URL" \
+            -o nav_history.zip
+
+          if [ ! -s nav_history.zip ]; then
+            echo "Download failed or empty file."
+            exit 1
+          fi
+
+          echo "Unzipping NAV history..."
           unzip -o nav_history.zip -d data
-          rm nav_history.zip
+
+          rm nav_history.zip latest_release.json
 
       - name: Run Core MF Engine
         run: python scripts/mf_core_engine.py
@@ -47,5 +76,5 @@ jobs:
           git config user.name "mf-engine"
           git config user.email "actions@github.com"
           git add .
-          git commit -m "Daily MF update" || echo "No changes"
+          git commit -m "Daily MF update" || echo "No changes to commit"
           git push
