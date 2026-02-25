@@ -26,41 +26,32 @@ jobs:
       - name: Install jq (for JSON parsing)
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Download NAV history base (Robust Dynamic Method)
+      - name: Download NAV history base
         run: |
           mkdir -p data
 
-          echo "Fetching latest release info..."
+          ASSET_URL=$(curl -s \
+            https://api.github.com/repos/KanungoS/mf-direct-performance/releases \
+            | jq -r '.[0].assets[] | select(.name=="nav_history.zip") | .url')
 
-          curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/KanungoS/mf-direct-performance/releases/latest \
-            -o latest_release.json
-
-          DOWNLOAD_URL=$(jq -r '.assets[0].url' latest_release.json)
-
-          if [ "$DOWNLOAD_URL" == "null" ]; then
-            echo "No release assets found!"
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "nav_history.zip not found in releases"
             exit 1
           fi
-
-          echo "Downloading NAV history asset..."
 
           curl -L \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/octet-stream" \
-            "$DOWNLOAD_URL" \
+            "$ASSET_URL" \
             -o nav_history.zip
 
           if [ ! -s nav_history.zip ]; then
-            echo "Download failed or empty file."
+            echo "Download failed"
             exit 1
           fi
 
-          echo "Unzipping NAV history..."
           unzip -o nav_history.zip -d data
-
-          rm nav_history.zip latest_release.json
+          rm nav_history.zip
 
       - name: Run Core MF Engine
         run: python scripts/mf_core_engine.py
